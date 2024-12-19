@@ -1,3 +1,5 @@
+import { popup } from "../helper/popup.mjs";
+
 export const promptSubmit = (promptOuter, startGameBtn, socket) => {
     // Get the username and room ID values
     let username = document.querySelector('[name = "username"]').value.trim();
@@ -13,6 +15,12 @@ export const promptSubmit = (promptOuter, startGameBtn, socket) => {
     }
     promptOuter.style.display = "none";
     socket.emit("join-room", username, roomId);
+    // If game is already started don't let user join
+    socket.on("failed-to-join-room", (username, msg) => {
+        alert(msg);
+        promptOuter.style.display = "inline-flex";
+        return;
+    });
     // Request all the users present in the same room to display
     socket.emit("request-current-users", roomId);
     // Checks if the user is host to display start button

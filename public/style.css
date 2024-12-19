@@ -67,7 +67,7 @@ body {
 }
 
 .player-screen-wrapper {
-  display: none;
+    display: none;
     z-index: 3;
     position: absolute;
     height: 100vh;
@@ -95,6 +95,7 @@ body {
     position: absolute;
     height: 100vh;
     width: 100vw;
+    display: none
 }
 
 .result-screen {
@@ -107,8 +108,60 @@ body {
     color: var(--elem-text-color);
     border-radius: 7px;
     width: 88%;
+    padding: 10px;
     transition: all 2s;
     z-index: 10;
+}
+
+.inGamePlayers-heading,
+.winners-heading,
+.losers-heading {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13pt;
+    font-weight: bold;
+}
+
+.inGamePlayers-list > ul,
+.winners-list > ul,
+.losers-list > ul {
+    margin-bottom: 5px;
+    list-style: none;
+}
+
+ion-icon[name="game-controller-outline"],
+ion-icon[name="trophy-outline"],
+ion-icon[name="sad-outline"] {
+    display: inline-block;
+    background: var(--elem-icons-bg-color);
+    padding: 5px;
+    margin-right: 5px;
+    border-radius: 6px;
+}
+
+.show-result {
+  outline: none;
+  border: 1px solid #60c689;
+  background: rgba(96, 198, 137, 0.4);
+  color: whitesmoke;
+  padding: 8px;
+  margin-bottom: 2vh;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.1em;
+}
+
+.restart-btn {
+    border: 1px solid #60c689;
+    background: rgba(96, 198, 137, 0.4);
+    color: whitesmoke;
+    padding: 4px;
+    border-radius: 6px;
+    margin-top: 0.6em;
+    font-size: 1.1em;
+    cursor: pointer;
+    display: none;
 }
 
 /* CSS for alert */
@@ -169,6 +222,7 @@ ion-icon[name="people-circle-outline"] {
 
 ion-icon[name="close-outline"] {
     display: inline-block;
+    cursor: pointer;
     background: rgba(233, 30, 98, 0.4);
     padding: 5px;
     border-radius: 6px;

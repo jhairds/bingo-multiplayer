@@ -5,11 +5,13 @@ import { winCheck } from "./utils/winCheck.mjs";
 import { rollBall } from "./utils/rollBall.mjs";
 import { promptSubmit } from "./utils/promptSubmit.mjs";
 import { startGame } from "./utils/startGame.mjs";
+import { displayResultWindow } from "./utils/resultWindow.mjs";
 
 // Popup or custom alert screen
 import { popup } from "./helper/popup.mjs";
-import { valueRecieve } from "./socket-events/valueRecieve.mjs";
 
+// Socket even logic for value recieve
+import { valueRecieve } from "./socket-events/valueRecieve.mjs";
 /**
  * @type {import("socket.io-client").Socket}
  */
@@ -17,10 +19,16 @@ const socket = io(); // Create a new socket.io instance to communicate with the 
 
 const cross = "X";
 
-// Starting screen and ending screen
+// Starting screen
 const playerScreenWrapper = document.querySelector(".player-screen-wrapper");
 const playerScreen = document.querySelector("player-screen");
 const startGameBtn = document.querySelector(".player-screen-btn");
+
+// Ending screen
+const resultScreenWrapper = document.querySelector(".result-screen-wrapper");
+const resultCloseBtn = document.querySelector(".result-close");
+const showResultBtn = document.querySelector(".show-result");
+const restartBtn = document.querySelector(".restart-btn");
 
 // Prompt functionality for username and room selection
 let promptOuter = document.querySelector(".prompt-outer"); // The outer container for the prompt
@@ -35,17 +43,29 @@ generateBingoGrid();
 
 let username, roomId; // Variables to store username and room ID
 
+// Handle show result window
+showResultBtn.addEventListener("click", () => {
+    resultScreenWrapper.style.display = "block";
+    // To populate the result screen
+    socket.emit("request-current-users", roomId);
+});
+
+resultCloseBtn.addEventListener("click", () => {
+    resultScreenWrapper.style.display = "none";
+});
+
 // Handle the submission of the prompt
 document.querySelector(".submit-btn").addEventListener("click", () => {
     [username, roomId] = promptSubmit(promptOuter, startGameBtn, socket);
 });
 
 socket.on("sending-user-data", (usersRoom) => {
-    gameStartingWindow(usersRoom);
+    if (!usersRoom.gameStarted) gameStartingWindow(usersRoom);
+    displayResultWindow(usersRoom);
 });
 
 startGameBtn.addEventListener("click", () => {
-    startGame(socket);
+    startGame(username, roomId, socket);
 });
 
 socket.on("game-started-everyone", () => {
@@ -60,7 +80,12 @@ document.querySelector(".roll-ball-btn").addEventListener("click", () => {
 });
 
 // Handle "value-recive" event from the server
-socket.on("value-recive", (number, text) => {
+socket.on("value-recive", (number, text, usersRoom) => {
+    const { winners } = usersRoom;
+    // Check if the current socket.id is in the winners object
+    if (Object.keys(winners).includes(socket.id)) {
+        return; // Exit the function early if the current user is a winner
+    }
     valueRecieve(number, text, cells, cross);
 });
 
@@ -71,6 +96,30 @@ socket.on("win-notification", (winner) => {
 
 let interval = setInterval(() => {
     winCheck(cells, cross, interval, username, roomId, socket);
+});
+
+// Handle after the game has ended
+socket.on("game-ended", (usersRoom) => {
+    resultCloseBtn.style.display = "none";
+    resultScreenWrapper.style.display = "block";
+    const { host } = usersRoom;
+    if (username === host.username) restartBtn.style.display = "block";
+});
+
+// Clean the slate for another round aka restart the game
+restartBtn.addEventListener("click", () => {
+    // Check if user is host
+    socket.emit("is-user-host", username, roomId);
+    socket.on("host-not-or-yes", (isHost) => {
+        if (isHost) return;
+    });
+    socket.emit("reset-game", roomId);
+});
+
+// Regenerate the bingo card
+socket.on("regenerate-bingo-card", () => {
+    resultScreenWrapper.style.display = "none";
+    generateBingoGrid();
 });
 
 // When host logout

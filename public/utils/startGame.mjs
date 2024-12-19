@@ -1,4 +1,7 @@
-export const startGame = (socket) => {
+const playerScreenWrapper = document.querySelector(".player-screen-wrapper");
+import { popup } from "../helper/popup.mjs";
+
+export const startGame = (username, roomId, socket) => {
     socket.emit("is-user-host", username, roomId);
     socket.on("host-not-or-yes", (isHost) => {
         if (isHost) {

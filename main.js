@@ -18,28 +18,49 @@ app.use(express.static("public"));
 
 io.on("connection", (socket) => {
     socket.on("join-room", (username, roomId) => {
-        socket.join(roomId);
-        socket.broadcast.to(roomId).emit("joined-room", username, roomId);
+        // Ensure room exists or initialize it
         if (!users[roomId]) {
-            // Initialize the room if it doesn't exist
             users[roomId] = {
-                players: {}, // Use an object to store players
-                host: null, // Host will be assigned when the first player joins
+                players: {},
+                inGamePlayers: {},
+                winners: {},
+                lossers: {},
+                host: null,
+                gameStarted: false,
             };
         }
 
-        // If this is the first player joining, assign them as the host
-        if (Object.keys(users[roomId].players).length === 0) {
-            users[roomId].host = { socketID: socket.id, username: username };
+        const roomData = users[roomId];
+
+        // Prevent joining if the game has started
+        if (roomData.gameStarted) {
+            socket.emit(
+                "failed-to-join-room",
+                username,
+                "Game has already started"
+            );
+            return;
         }
 
+        // Join the room
+        socket.join(roomId);
+        socket.broadcast.to(roomId).emit("joined-room", username, roomId);
+
+        // Assign host if not already assigned
+        if (!roomData.host) {
+            roomData.host = {
+                socketID: socket.id,
+                username: username,
+            };
+        }
         // Add the player to the room
-        users[roomId].players[socket.id] = username;
+        roomData.players[socket.id] = username;
+        roomData.inGamePlayers[socket.id] = username;
     });
 
     // Sends value gain from the host to all the users in room
     socket.on("value-send", (num, text, room) => {
-        socket.broadcast.to(room).emit("value-recive", num, text);
+        socket.broadcast.to(room).emit("value-recive", num, text, users[room]);
     });
 
     socket.on("request-current-users", (room) => {
@@ -50,28 +71,72 @@ io.on("connection", (socket) => {
     socket.on("is-user-host", (username, room) => {
         // Check if the room exists and if there is a host
         let roomData = users[room];
-    
+
         if (!roomData || !roomData.host) {
             socket.emit("host-not-or-yes", false);
             return;
         }
-    
+
         // Compare if the current user is the host
         const isHost = roomData.host.socketID === socket.id;
-    
+
         // Emit back the result to the user
         socket.emit("host-not-or-yes", isHost);
     });
-    
 
     socket.on("game-started", (room) => {
-        let roomData = users[room]
-        roomData.gameStarted = true
-        socket.broadcast.to(room).emit("game-started-everyone")
-    })
+        let roomData = users[room];
+        roomData.gameStarted = true;
+        socket.broadcast.to(room).emit("game-started-everyone");
+    });
 
     socket.on("win", (username, room) => {
+        let roomData = users[room];
+        let playerId = socket.id;
+        let playerData = roomData.inGamePlayers[playerId];
+
+        // Add the winning player to the winners list
+        roomData.winners[playerId] = playerData;
+        delete roomData.inGamePlayers[playerId];
+
+        // Check if only one player is left
+        if (Object.keys(roomData.inGamePlayers).length === 1) {
+            // Transfer the last player to lossers
+            let lastPlayerId = Object.keys(roomData.inGamePlayers)[0];
+            roomData.lossers[lastPlayerId] =
+                roomData.inGamePlayers[lastPlayerId];
+            delete roomData.inGamePlayers[lastPlayerId];
+            io.to(room).emit("game-ended", roomData);
+        }
+
+        // Notify the room about the winner
         socket.broadcast.to(room).emit("win-notification", username);
+
+        // Update the result window
+        io.to(room).emit("sending-user-data", users[room]);
+    });
+
+    socket.on("is-winner", (username, room) => {
+        const { winners } = users[room];
+        let isWinner = false
+        // Check if the current socket.id is in the winners object
+        if (Object.keys(winners).includes(socket.id)) {
+            isWinner = true
+        }
+        socket.emit("is-host-winner", isWinner)
+    });
+
+    socket.on("reset-game", (room) => {
+        if (users[room]) {
+            users[room].winners = {}; // Reset winners
+            users[room].lossers = {}; // Reset lossers
+
+            // Update the result window
+            io.to(room).emit("sending-user-data", users[room]);
+            io.to(room).emit("regenerate-bingo-card");
+        } else {
+            console.error(`Room ${room} not found`);
+        }
     });
 
     socket.on("disconnect", () => {
@@ -109,10 +174,6 @@ io.on("connection", (socket) => {
         });
     });
 });
-
-setInterval(() => {
-    console.log(users)
-}, 5000)
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

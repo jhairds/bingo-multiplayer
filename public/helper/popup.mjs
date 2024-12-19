@@ -13,4 +13,4 @@ export const popup = (name, msg) => {
         alertElem.style.display = "none"; // Hide the alert when the close button is clicked
         alertWrapper.style.display = "none";
     });
-}
+};
