@@ -1,1 +1,1 @@
-# Completed
+Hello, good evening, I like what you have done, but when I run it I get many errors, the numbers do not appear, nor the boxes, neither the prompt nor the login appear. Could you please describe the execution process and what requirements to install and the step by step please? Since the "readme" document does not have any information. Thanks
